@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS app_user (
+  id VARCHAR(36) PRIMARY KEY, username VARCHAR(64) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS user_session (
+  token_hash VARCHAR(64) PRIMARY KEY, owner_id VARCHAR(36) NOT NULL, expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (owner_id) REFERENCES app_user(id)
+);
+CREATE TABLE IF NOT EXISTS story_project (
+  id VARCHAR(36) PRIMARY KEY, owner_id VARCHAR(36) NOT NULL, title VARCHAR(120) NOT NULL,
+  logline VARCHAR(1000) NOT NULL, genre VARCHAR(40) NOT NULL, target_duration INT NOT NULL,
+  revision INT NOT NULL, archived BOOLEAN NOT NULL DEFAULT FALSE, document_json LONGTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (owner_id) REFERENCES app_user(id), INDEX ix_project_owner (owner_id,updated_at)
+);
+CREATE TABLE IF NOT EXISTS story_revision (
+  project_id VARCHAR(36) NOT NULL, revision INT NOT NULL, snapshot_json LONGTEXT NOT NULL,
+  summary VARCHAR(200) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(project_id,revision), FOREIGN KEY (project_id) REFERENCES story_project(id)
+);
+CREATE TABLE IF NOT EXISTS story_asset (
+  id VARCHAR(36) PRIMARY KEY, project_id VARCHAR(36) NOT NULL, owner_id VARCHAR(36) NOT NULL,
+  file_name VARCHAR(220) NOT NULL, storage_key VARCHAR(64) NOT NULL, mime_type VARCHAR(40) NOT NULL,
+  size_bytes BIGINT NOT NULL, width INT NOT NULL, height INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
+);

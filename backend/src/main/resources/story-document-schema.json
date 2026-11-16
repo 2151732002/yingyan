@@ -1,0 +1,190 @@
+{
+  "type": "object",
+  "properties": {
+    "story": {
+      "type": "string"
+    },
+    "script": {
+      "type": "string"
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "appearance": {
+            "type": "string"
+          },
+          "costume": {
+            "type": "string"
+          },
+          "voiceId": {
+            "type": "string"
+          },
+          "referenceAssetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "appearance",
+          "costume",
+          "voiceId",
+          "referenceAssetId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lighting": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "lighting",
+          "blocking"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "shots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sceneId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DIALOGUE",
+              "REACTION",
+              "ESTABLISHING"
+            ]
+          },
+          "framing": {
+            "type": "string",
+            "enum": [
+              "CLOSEUP",
+              "MEDIUM",
+              "WIDE",
+              "OVER_SHOULDER"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "visibleCharacterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "durationSeconds": {
+            "type": "number"
+          },
+          "dialogue": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "speakerId": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "emotion": {
+                    "type": "string"
+                  },
+                  "speed": {
+                    "type": "number"
+                  },
+                  "delivery": {
+                    "type": "string",
+                    "enum": [
+                      "ON_SCREEN",
+                      "VOICE_OVER"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "speakerId",
+                  "text",
+                  "emotion",
+                  "speed",
+                  "delivery"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sceneId",
+          "title",
+          "kind",
+          "framing",
+          "description",
+          "visibleCharacterIds",
+          "durationSeconds",
+          "dialogue"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "story",
+    "script",
+    "characters",
+    "scenes",
+    "shots"
+  ],
+  "additionalProperties": false
+}
