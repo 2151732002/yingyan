@@ -41,8 +41,9 @@ public class AiPlanner {
         var schema=json.createObjectNode();schema.put("type","object");schema.put("additionalProperties",false);
         schema.putArray("required").add("reply").add("document");
         var properties=schema.putObject("properties");properties.putObject("reply").put("type","string");properties.set("document",documentSchema());
+        body.put("instructions",body.path("instructions").asText()+"\n只输出一个 JSON 对象，不要在 JSON 外写说明或 Markdown。JSON 输出示例（示例只说明格式，document须替换为最新完整草稿）：{\"reply\":\"我们先确认人物动机，草稿暂不改动。\",\"document\":{\"story\":\"\",\"script\":\"\",\"characters\":[],\"scenes\":[],\"shots\":[]}}\n必须遵循的 JSON Schema："+schema.toString());
         format(body,"writing_conversation",schema);
-        return generate(body,Models.ChatReply.class);
+        return generate(body,Models.ChatReply.class,draft);
     }
     private ObjectNode baseBody(){var body=json.createObjectNode();body.put("model",model);body.put("store",false);return body;}
     private String context(Models.Project project,Document draft){return "剧本名称："+project.title()+"；目标时长："+project.targetDuration()+"秒。\n最新完整草稿："+json.valueToTree(draft).toString();}
@@ -50,26 +51,54 @@ public class AiPlanner {
     private JsonNode documentSchema(){try(var stream=getClass().getResourceAsStream("/story-document-schema.json")){return json.readTree(stream);}catch(IOException e){throw new IllegalStateException("Cannot load story schema",e);}}
     private void format(ObjectNode body,String name,JsonNode schema){var format=body.putObject("text").putObject("format");format.put("type","json_schema");format.put("name",name);format.put("strict",true);format.set("schema",schema);}
     private <T>T generate(ObjectNode body,Class<T> type){
+        return generate(body,type,null);
+    }
+    private <T>T generate(ObjectNode body,Class<T> type,Document discussionDraft){
         if(!configured())throw new ApiException(503,"AI_NOT_CONFIGURED","尚未配置文本 AI。你可以手动编辑，配置后端 OPENAI_API_KEY 后再使用生成建议。");
+        String stage="upstream",input="";
         try{
             var request=HttpRequest.newBuilder(URI.create(base+"/responses")).timeout(Duration.ofSeconds(60)).header("Authorization","Bearer "+key).header("Content-Type","application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build();
             var response=http.send(request,HttpResponse.BodyHandlers.ofString());
             if(response.statusCode()<200||response.statusCode()>=300)throw new ApiException(502,"AI_UPSTREAM_ERROR","文本 AI 请求未完成，请检查模型权限、地区、额度或稍后重试");
-            var result=json.readTree(response.body());
+            input=response.body();
+            var result=json.readTree(input);
             if(!result.path("status").asText("completed").equals("completed"))throw new ApiException(502,"AI_INCOMPLETE","AI 输出尚未完成，请缩短故事后重试");
+            var text=new StringBuilder();
             for(var item:result.path("output"))for(var part:item.path("content")){
                 if(part.path("type").asText().equals("refusal"))throw new ApiException(422,"AI_REFUSED","AI 无法处理这份创作需求，请调整描述");
-                if(part.path("type").asText().equals("output_text"))return json.readValue(part.path("text").asText(),type);
+                if(part.path("type").asText().equals("output_text"))text.append(part.path("text").asText());
             }
-            throw new ApiException(502,"AI_INVALID_OUTPUT","AI 没有返回可编辑的结构化剧本");
+            if(text.isEmpty())throw new ApiException(502,"AI_INVALID_OUTPUT","AI 没有返回可编辑的结构化剧本");
+            stage="generated";input=text.toString().strip();
+            if(input.startsWith("\uFEFF"))input=input.substring(1).stripLeading();
+            try{return json.readValue(input,type);}catch(JsonProcessingException e){
+                if(type.equals(Models.ChatReply.class)&&discussionDraft!=null&&plainDiscussion(input)){
+                    LoggerFactory.getLogger(getClass()).info("Text AI returned a discussion reply; draft unchanged");
+                    return type.cast(new Models.ChatReply("本轮为讨论回复，当前剧本草稿保持不变。\n\n"+input.strip()+"\n\n需要更新右侧剧本时，可以继续说：请按以上方案更新剧本草稿。",discussionDraft));
+                }
+                throw e;
+            }
         }catch(ApiException e){throw e;}catch(InterruptedException e){Thread.currentThread().interrupt();throw new ApiException(503,"AI_INTERRUPTED","文本生成已中断，可保留草稿后重试");}
         catch(HttpConnectTimeoutException e){throw failure(e,504,"AI_CONNECT_TIMEOUT","文本 AI 连接超时，尚未收到服务响应。请检查后端网络出口、防火墙和服务地址，保留草稿后重试。");}
         catch(HttpTimeoutException e){throw failure(e,504,"AI_RESPONSE_TIMEOUT","等待文本 AI 响应超时，生成结果尚未确认。请保留草稿，稍后再试。");}
-        catch(JsonProcessingException e){throw failure(e,502,"AI_INVALID_OUTPUT","文本 AI 返回内容无法解析为剧本，请保留草稿并重试。");}
+        catch(JsonProcessingException e){logDecodeFailure(stage,input,e);throw failure(e,502,"AI_INVALID_OUTPUT","文本 AI 返回内容无法解析为剧本，请保留草稿并重试。");}
         catch(IOException e){throw failure(e,502,"AI_CONNECTION_ERROR","文本 AI 网络连接失败，请检查后端网络、服务地址和 TLS 证书后重试。");}
         catch(Exception e){throw failure(e,502,"AI_REQUEST_ERROR","文本 AI 请求未完成，请检查后端模型配置，保留草稿后重试。");}
     }
+    private boolean plainDiscussion(String text){
+        String value=text.strip();
+        if(value.isEmpty()||value.length()>5500||value.matches("null|true|false|[0-9.eE+\\-]+"))return false;
+        return switch(value.charAt(0)){case '{','[','\"','`','<'->false;default->!value.startsWith("data:");};
+    }
+    private void logDecodeFailure(String stage,String input,JsonProcessingException e){
+        var location=e.getLocation();long offset=location==null?-1:location.getCharOffset();
+        String field="unknown";
+        if(e.getProcessor() instanceof com.fasterxml.jackson.core.JsonParser parser){try{String name=parser.currentName();if(java.util.Set.of("reply","document","story","script","characters","scenes","shots","text").contains(name==null?"":name))field=name;}catch(IOException ignored){}}
+        String trimmed=input.stripLeading();String shape=trimmed.startsWith("{")?"object":trimmed.startsWith("```")?"fenced":trimmed.startsWith("<")?"markup":trimmed.isBlank()?"empty":"other";
+        LoggerFactory.getLogger(getClass()).warn("AI JSON decode: stage={}, shape={}, chars={}, line={}, column={}, field={}, before={}, at={}",stage,shape,input.length(),location==null?-1:location.getLineNr(),location==null?-1:location.getColumnNr(),field,charCode(input,offset-1),charCode(input,offset));
+    }
+    private String charCode(String text,long at){if(at<0||at>=text.length())return "EOF";int code=text.charAt((int)at);return code<=127?Integer.toString(code):"nonASCII";}
     private ApiException failure(Exception e,int status,String code,String message){
         // Never log exception messages, response bodies, prompts or credentials.
         LoggerFactory.getLogger(getClass()).warn("Text AI failure: category={}, exception={}",code,e.getClass().getSimpleName());

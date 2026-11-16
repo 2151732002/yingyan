@@ -31,6 +31,13 @@ class ConversationTest {
     JsonNode turn(Cookie c,String id,int version,String message)throws Exception{return body(mvc.perform(post("/api/projects/"+id+"/conversation/turns").cookie(c).contentType("application/json").content(json.writeValueAsBytes(Map.of("expectedVersion",version,"expectedRevision",1,"message",message)))).andExpect(status().isOk()).andReturn());}
     Models.Document doc(String text){return new Models.Document(text,"对白："+text,List.of(),List.of(),List.of());}
     void answer(String story){doReturn(new Models.ChatReply("已按你的要求修改。",doc(story))).when(ai).converse(anyString(),any(),any(),anyList());}
+    @Test void discussionOnlyReplyPersistsWithoutChangingOrSavingTheScript()throws Exception {
+        var c=login();String id=create(c);state(c,id);
+        answer("ignored");doReturn(new Models.ChatReply("我们先讨论人物动机，当前草稿保持不变。",Models.Document.empty())).when(ai).converse(anyString(),any(),any(),anyList());
+        var discussed=turn(c,id,1,"先聊人物");assertThat(discussed.path("messages").size()).isEqualTo(2);assertThat(discussed.path("hasChanges").asBoolean()).isFalse();
+        mvc.perform(post("/api/projects/"+id+"/conversation/save").cookie(c).contentType("application/json").content("{\"expectedVersion\":2,\"expectedRevision\":1}")).andExpect(status().isBadRequest());
+        assertThat(body(mvc.perform(get("/api/projects/"+id).cookie(c)).andReturn()).path("revision").asInt()).isEqualTo(1);
+    }
     @Test void iterativeDraftPersistsAndOnlyExplicitSaveCreatesARevision()throws Exception{
         var c=login();String id=create(c);assertThat(state(c,id).path("version").asInt()).isEqualTo(1);
         when(ai.converse(anyString(),any(),any(),anyList())).thenReturn(new Models.ChatReply("先写初稿。",doc("初次重逢")),new Models.ChatReply("改为开放结局。",doc("初次重逢，开放结局")));

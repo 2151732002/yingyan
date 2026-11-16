@@ -48,6 +48,8 @@
 
 AI 连接超时返回 `504 AI_CONNECT_TIMEOUT`，等待响应超时返回 `504 AI_RESPONSE_TIMEOUT`；JSON 解析失败返回 `502 AI_INVALID_OUTPUT`，其他网络失败返回 `502 AI_CONNECTION_ERROR`。连接超时意味着尚未得到上游 HTTP 响应，不能据此判断密钥、模型权限或余额。后端诊断只记录错误分类和异常类名，不记录原始异常消息、密钥、上游正文或用户剧本。填入配置只表示字段存在，不代表已验证模型可调用。
 
+对话接口兼容模型的普通文字回复：以讨论消息保留，明确标注本轮草稿不变，不把自然语言猜成结构化修改；下一轮仍使用原工作草稿。所有 `output_text` 分段先合并再解析，忽略开头的 BOM 标记。结构化 JSON 损坏或截断时仍报错，不将它伪装成一次成功修改。解析诊断只记录阶段、内容形态、长度、行列、白名单字段名和 ASCII 字符码，不记录正文。请求附带显式 JSON 示例和完整 schema，没有自动再次调用付费模型。
+
 上传单独保存，引用进入故事文档后随版本保存；未引用的上传仍保留，没有自动垃圾清理。素材 URL 必须经过会话鉴权，不能直接提供给需要公网 URL 的第三方视频模型。
 
 对话结构：`{projectId,version,baseRevision,currentRevision,document,messages,processing,pendingPrompt,stale,hasChanges,updatedAt}`。消息为 `{id,role,content,createdAt}`。前端不提交可信历史或模型输出，Java 从自己的持久化记录读取上下文，每轮仅向模型发送最近 12 条消息及完整最新草稿。

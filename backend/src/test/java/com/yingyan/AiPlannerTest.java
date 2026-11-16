@@ -9,10 +9,57 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 class AiPlannerTest {
     final ObjectMapper json=new ObjectMapper();
     Models.Project project(){return new Models.Project("p1","雨夜咖啡馆","告别","剧情",45,1,false,Models.Document.empty(),null,null);}
+    @Test void plainChineseConversationReplyPreservesTheExistingDraft()throws Exception {
+        var draft=new Models.Document("已有故事","已有对白",java.util.List.of(),java.util.List.of(),java.util.List.of());
+        var reply=chatWithParts(java.util.List.of("可以，我们先讨论人物的动机。你希望他们为什么重逢？"),draft);
+        assertThat(reply.reply()).contains("先讨论人物的动机","草稿保持不变");
+        assertThat(reply.document()).isEqualTo(draft);
+    }
+    @Test void splitStructuredTextIsJoinedBeforeParsing()throws Exception {
+        var draft=Models.Document.empty();String encoded=json.writeValueAsString(new Models.ChatReply("确认设定",draft));
+        var reply=chatWithParts(java.util.List.of(encoded.substring(0,12),encoded.substring(12)),draft);
+        assertThat(reply.reply()).isEqualTo("确认设定");assertThat(reply.document()).isEqualTo(draft);
+    }
+    @Test void leadingBomIsRemovedBeforeDecodingStructuredOutput()throws Exception {
+        var draft=Models.Document.empty();String encoded=json.writeValueAsString(new Models.ChatReply("确认",draft));
+        var reply=chatWithParts(java.util.List.of("\uFEFF"+encoded),draft);
+        assertThat(reply.reply()).isEqualTo("确认");assertThat(reply.document()).isEqualTo(draft);
+    }
+    @Test void malformedStructuredJsonIsNotSilentlyTurnedIntoDiscussion()throws Exception {
+        assertThatThrownBy(()->chatWithParts(java.util.List.of("{\"reply\":\"broken\",\"document\":"),Models.Document.empty()))
+            .isInstanceOfSatisfying(ApiException.class,e->assertThat(e.code()).isEqualTo("AI_INVALID_OUTPUT"));
+    }
+    Models.ChatReply chatWithParts(java.util.List<String> parts,Models.Document draft)throws Exception {
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/responses",exchange->{
+            var packet=json.createObjectNode();packet.put("status","completed");var content=packet.putArray("output").addObject().putArray("content");
+            for(String part:parts)content.addObject().put("type","output_text").put("text",part);
+            byte[] response=json.writeValueAsBytes(packet);exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);exchange.close();
+        });server.start();
+        try{return new AiPlanner(json,"dummy-key","model","http://127.0.0.1:"+server.getAddress().getPort()).converse("讨论人物",project(),draft,java.util.List.of());}
+        finally{server.stop(0);}
+    }
+    @Test @ExtendWith(OutputCaptureExtension.class)
+    void invalidGeneratedJsonLogsOnlySafeLocationMetadata(CapturedOutput captured)throws Exception {
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/responses",exchange->{
+            String invalid="{\"reply\":\"sensitive-story\",\"document\":{\"script\":\"first\nsecond\"}}";
+            byte[] response=("{\"status\":\"completed\",\"output\":[{\"content\":[{\"type\":\"output_text\",\"text\":"+json.writeValueAsString(invalid)+"}]}]}").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);exchange.close();
+        });server.start();
+        try{
+            var planner=new AiPlanner(json,"private-key","model","http://127.0.0.1:"+server.getAddress().getPort());
+            assertThatThrownBy(()->planner.converse("test",project(),Models.Document.empty(),java.util.List.of())).isInstanceOf(ApiException.class);
+            assertThat(captured.getAll()).contains("stage=generated","field=script").doesNotContain("sensitive-story","private-key");
+        }finally{server.stop(0);}
+    }
     @Test void conversationSendsLatestDraftAndHistoryAndParsesReplyEnvelope()throws Exception {
         var received=new AtomicReference<JsonNode>();
         var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
@@ -33,6 +80,7 @@ class AiPlannerTest {
             assertThat(request.path("input").get(1).path("content").asText()).isEqualTo("人物保持克制");
             assertThat(request.path("input").get(3).path("content").asText()).isEqualTo("改成开放结局");
             assertThat(request.path("text").path("format").path("schema").path("properties").has("document")).isTrue();
+            assertThat(request.path("instructions").asText()).contains("JSON 输出示例","\"reply\"","\"document\"");
             assertThat(request.toString()).doesNotContain("test-secret");
         }finally{server.stop(0);}
     }
