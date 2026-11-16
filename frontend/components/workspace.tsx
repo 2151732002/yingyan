@@ -30,7 +30,13 @@ import { api, ApiError, send } from "@/lib/api";
 import { sampleDocument } from "@/lib/sample";
 import type { Asset, Project, StoryDocument } from "@/lib/types";
 
-export function Workspace({ id }: { id: string }) {
+export function Workspace({
+  id,
+  openAssistant = false,
+}: {
+  id: string;
+  openAssistant?: boolean;
+}) {
   const session = useSession();
   const query = useQuery({
     queryKey: ["project", id],
@@ -47,7 +53,13 @@ export function Workspace({ id }: { id: string }) {
         </Link>
       </div>
     );
-  return <ProjectEditor key={id} initial={query.data} />;
+  return (
+    <ProjectEditor
+      key={id}
+      initial={query.data}
+      openAssistant={openAssistant}
+    />
+  );
 }
 function content(p: Project) {
   return JSON.stringify({
@@ -58,7 +70,13 @@ function content(p: Project) {
     document: p.document,
   });
 }
-function ProjectEditor({ initial }: { initial: Project }) {
+function ProjectEditor({
+  initial,
+  openAssistant,
+}: {
+  initial: Project;
+  openAssistant: boolean;
+}) {
   const client = useQueryClient();
   const [draft, setDraft] = useState<Project>(() => structuredClone(initial));
   const [saved, setSaved] = useState(initial);
@@ -67,7 +85,7 @@ function ProjectEditor({ initial }: { initial: Project }) {
   const [error, setError] = useState("");
   const [history, setHistory] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [assistant, setAssistant] = useState(false);
+  const [assistant, setAssistant] = useState(openAssistant);
   const [conflict, setConflict] = useState(false);
   const dirty = content(draft) !== content(saved);
   const assets = useQuery({
@@ -454,11 +472,14 @@ function ProjectEditor({ initial }: { initial: Project }) {
         <AiAssistant
           project={saved}
           onClose={() => setAssistant(false)}
-          onAdopt={(document) => {
-            change(document);
-            setAssistant(false);
+          onSaved={(project) => {
+            setDraft(project);
+            setSaved(project);
+            client.setQueryData(["project", project.id], project);
+            void client.invalidateQueries({ queryKey: ["projects"] });
             setTab("story");
-            setNotice("已采用 AI 建议到草稿，请检查后保存新版本。");
+            setError("");
+            setNotice("对话剧本已保存到 V" + project.revision);
           }}
         />
       )}

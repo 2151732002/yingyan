@@ -26,3 +26,11 @@ CREATE TABLE IF NOT EXISTS story_asset (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
 );
+CREATE TABLE IF NOT EXISTS story_conversation (
+  project_id VARCHAR(36) PRIMARY KEY, owner_id VARCHAR(36) NOT NULL,
+  version INT NOT NULL, base_revision INT NOT NULL,
+  draft_json LONGTEXT NOT NULL, messages_json LONGTEXT NOT NULL,
+  request_id VARCHAR(36), pending_prompt VARCHAR(5000), processing_until TIMESTAMP NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
+);

@@ -13,6 +13,29 @@ import static org.mockito.Mockito.*;
 class AiPlannerTest {
     final ObjectMapper json=new ObjectMapper();
     Models.Project project(){return new Models.Project("p1","雨夜咖啡馆","告别","剧情",45,1,false,Models.Document.empty(),null,null);}
+    @Test void conversationSendsLatestDraftAndHistoryAndParsesReplyEnvelope()throws Exception {
+        var received=new AtomicReference<JsonNode>();
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        var draft=new Models.Document("当前已修改的雨夜故事","台词",java.util.List.of(),java.util.List.of(),java.util.List.of());
+        server.createContext("/responses",exchange->{
+            received.set(json.readTree(exchange.getRequestBody()));
+            var envelope=json.writeValueAsString(new Models.ChatReply("保留人物，改成开放结局。",draft));
+            byte[] response=("{\"status\":\"completed\",\"output\":[{\"type\":\"reasoning\",\"content\":[]},{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":"+json.writeValueAsString(envelope)+"}]}]}").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);exchange.close();
+        });server.start();
+        try{
+            var planner=new AiPlanner(json,"test-secret","deepseek-flash","http://127.0.0.1:"+server.getAddress().getPort());
+            var history=java.util.List.of(new Models.ChatMessage("1","user","人物保持克制",null),new Models.ChatMessage("2","assistant","已保留克制的人设",null));
+            var reply=planner.converse("改成开放结局",project(),draft,history);
+            assertThat(reply.reply()).contains("开放结局");assertThat(reply.document()).isEqualTo(draft);
+            var request=received.get();assertThat(request.path("input").size()).isEqualTo(4);
+            assertThat(request.path("input").get(0).path("content").asText()).contains(draft.story(),project().title());
+            assertThat(request.path("input").get(1).path("content").asText()).isEqualTo("人物保持克制");
+            assertThat(request.path("input").get(3).path("content").asText()).isEqualTo("改成开放结局");
+            assertThat(request.path("text").path("format").path("schema").path("properties").has("document")).isTrue();
+            assertThat(request.toString()).doesNotContain("test-secret");
+        }finally{server.stop(0);}
+    }
     @Test void connectionTimeoutHasItsOwnSafeActionableError()throws Exception {
         var client=mock(HttpClient.class);
         when(client.send(any(HttpRequest.class),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenThrow(new HttpConnectTimeoutException("dummy-key-secret"));

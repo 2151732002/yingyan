@@ -3343,3 +3343,468 @@ select {
 .frame-note {
   z-index: 1;
 }
+
+/* Conversational writing keeps working drafts separate from saved revisions. */
+.modal.conversation-modal {
+  width: min(1180px, calc(100% - 32px));
+  max-height: calc(100dvh - 28px);
+}
+.conversation-modal .modal-content {
+  padding: 0;
+}
+.conversation-modal .modal-content > header {
+  padding: 20px 26px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.conversation-modal .modal-content > header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+}
+.conversation-workbench {
+  height: min(780px, calc(100dvh - 112px));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.conversation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 16px;
+  padding: 17px 24px;
+  background: #f0f3e7;
+  border-bottom: 1px solid #dce3cf;
+}
+.conversation-toolbar small {
+  display: block;
+  font-size: 12px;
+  color: #74806a;
+  margin-top: 7px;
+  line-height: 1.5;
+}
+.conversation-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+.conversation-toolbar .btn {
+  font-size: 14px;
+}
+.conversation-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.conversation-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.unsaved-dot {
+  background: #bc955a;
+}
+.saved-dot {
+  background: #81915f;
+}
+.conversation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.conversation-chat,
+.conversation-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.conversation-chat {
+  border-right: 1px solid #dfe5d1;
+  background: #f8f8f0;
+}
+.conversation-log {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+}
+.conversation-welcome {
+  padding: 12px 2px 20px;
+}
+.conversation-avatar {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  background: #e6ebd9;
+  border-radius: 11px;
+  margin-bottom: 19px;
+  color: #758453;
+}
+.conversation-welcome h3 {
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 23px;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.conversation-welcome p {
+  font-size: 16px;
+  line-height: 1.9;
+  margin-top: 13px;
+  color: #6e7a61;
+}
+.conversation-starters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 23px;
+}
+.conversation-starters button {
+  text-align: left;
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid #dbe2cc;
+  border-radius: 6px;
+  background: #f1f5e7;
+  line-height: 1.6;
+}
+.conversation-message {
+  max-width: 94%;
+  margin-bottom: 22px;
+  padding: 14px 16px;
+  background: #edf1e2;
+  border: 1px solid #dce4cc;
+  border-radius: 10px 10px 10px 2px;
+}
+.conversation-message.user {
+  margin-left: auto;
+  background: #e0e7d3;
+  border-color: #d0dbc0;
+  border-radius: 10px 10px 2px 10px;
+}
+.conversation-message.pending {
+  opacity: 0.7;
+}
+.conversation-speaker {
+  display: block;
+  font-size: 12px;
+  color: #78866a;
+  margin-bottom: 9px;
+}
+.conversation-message p {
+  font-size: 16px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #4b5e3b;
+}
+.conversation-thinking {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #7b8766;
+  padding-bottom: 14px;
+}
+.conversation-thinking svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.conversation-composer {
+  border-top: 1px solid #dce3ce;
+  padding: 14px 20px 18px;
+  flex-shrink: 0;
+}
+.conversation-composer label {
+  margin: 0 0 9px;
+  font-size: 13px;
+}
+.conversation-composer textarea {
+  font-size: 16px;
+  min-height: 86px;
+  max-height: 150px;
+  line-height: 1.8;
+  padding: 11px 13px;
+  resize: vertical;
+}
+.conversation-composer .error-message {
+  margin: 0 0 10px;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 13px;
+}
+.conversation-compose-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 11px;
+}
+.conversation-compose-actions small {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #839071;
+}
+.conversation-compose-actions .btn {
+  font-size: 14px;
+}
+.conversation-preview {
+  background: #fffef5;
+}
+.conversation-preview > header {
+  padding: 22px 25px 18px;
+  border-bottom: 1px solid #e7e9d9;
+  flex-shrink: 0;
+}
+.conversation-preview > header .eyebrow {
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+.conversation-preview > header h3 {
+  font-family: "Songti SC", SimSun, serif;
+  font-size: 25px;
+  line-height: 1.5;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.conversation-preview > header p {
+  font-size: 12px;
+  color: #84916f;
+  margin-top: 9px;
+}
+.conversation-preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px 25px 24px;
+}
+.conversation-preview-body h4 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 24px 0 12px;
+  color: #74855a;
+}
+.conversation-preview-body p,
+.conversation-preview-body pre {
+  font: inherit;
+  font-size: 16px;
+  line-height: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #58694a;
+  margin: 0 0 12px;
+}
+.conversation-preview-body details {
+  border-top: 1px solid #e2e7d4;
+  padding-top: 18px;
+  margin-top: 22px;
+}
+.conversation-preview-body summary {
+  cursor: pointer;
+  font-size: 15px;
+  color: #6f8056;
+}
+.conversation-shot {
+  border-left: 2px solid #c6d2ad;
+  padding-left: 13px;
+  margin-top: 20px;
+}
+.conversation-shot > strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.conversation-shot p {
+  font-size: 14px;
+}
+.conversation-preview > footer {
+  padding: 13px 24px;
+  border-top: 1px solid #e4e8d7;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #859471;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.conversation-preview > footer svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.conversation-mobile-tabs {
+  display: none;
+}
+.conversation-notice {
+  background: #edf3e2;
+  color: #63784b;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 9px 24px;
+  border-bottom: 1px solid #dce5cb;
+  flex-shrink: 0;
+}
+.conversation-conflict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f5ecda;
+  color: #887345;
+  padding: 12px 24px;
+  flex-shrink: 0;
+}
+.conversation-conflict p {
+  font-size: 13px;
+  line-height: 1.7;
+  flex: 1;
+}
+.conversation-unavailable {
+  padding: 32px;
+  max-width: 650px;
+}
+.conversation-unavailable h3 {
+  font-size: 20px;
+  margin: 17px 0;
+}
+.conversation-unavailable p {
+  font-size: 16px;
+  line-height: 1.9;
+  margin-bottom: 16px;
+}
+.conversation-unavailable small {
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .modal.conversation-modal {
+    width: calc(100% - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+  .conversation-modal .modal-content > header {
+    padding: 16px;
+    gap: 9px;
+  }
+  .conversation-modal .modal-content > header h2 {
+    font-size: 17px;
+  }
+  .conversation-workbench {
+    height: calc(100dvh - 104px);
+  }
+  .conversation-toolbar {
+    padding: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .conversation-toolbar > div:first-child {
+    flex: 1;
+    min-width: 110px;
+  }
+  .conversation-toolbar small {
+    font-size: 11px;
+  }
+  .conversation-status {
+    font-size: 12px;
+  }
+  .conversation-toolbar-actions {
+    gap: 3px;
+  }
+  .conversation-toolbar .btn {
+    font-size: 12px;
+    padding: 9px;
+    gap: 5px;
+  }
+  .conversation-toolbar-actions .icon-btn {
+    width: 26px;
+  }
+  .conversation-mobile-tabs {
+    display: flex;
+    flex-shrink: 0;
+    border-bottom: 1px solid #dce3cf;
+    background: #f1f4e8;
+  }
+  .conversation-mobile-tabs button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 13px 8px;
+    font-size: 14px;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+  }
+  .conversation-mobile-tabs button.active {
+    border-color: #94a96c;
+    background: #e9eedb;
+  }
+  .conversation-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .conversation-layout[data-view="chat"] .conversation-preview,
+  .conversation-layout[data-view="preview"] .conversation-chat {
+    display: none;
+  }
+  .conversation-chat,
+  .conversation-preview {
+    flex: 1;
+    border: 0;
+  }
+  .conversation-log {
+    padding: 17px;
+  }
+  .conversation-welcome {
+    padding-top: 4px;
+  }
+  .conversation-welcome h3 {
+    font-size: 21px;
+  }
+  .conversation-welcome p {
+    font-size: 15px;
+  }
+  .conversation-starters {
+    margin-top: 17px;
+  }
+  .conversation-starters button {
+    font-size: 13px;
+  }
+  .conversation-composer {
+    padding: 11px 13px 13px;
+  }
+  .conversation-composer textarea {
+    min-height: 78px;
+    max-height: 120px;
+  }
+  .conversation-compose-actions small {
+    max-width: 145px;
+    font-size: 10px;
+  }
+  .conversation-preview > header {
+    padding: 17px;
+  }
+  .conversation-preview-body {
+    padding: 0 17px 20px;
+  }
+  .conversation-preview > footer {
+    padding: 11px 17px;
+  }
+  .conversation-conflict {
+    padding: 10px 13px;
+    flex-wrap: wrap;
+  }
+  .conversation-notice {
+    padding: 9px 13px;
+  }
+}

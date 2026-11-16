@@ -21,6 +21,10 @@
 | POST /projects/{id}/assets | multipart `file`，真实 JPEG/PNG 最大 5MB |
 | GET /assets/{id}/file | 当前用户有权读取的图片 |
 | POST /projects/{id}/draft-suggestions | `{expectedRevision,prompt}`，返回 `{baseRevision,document,model}`，不保存 |
+| GET /projects/{id}/conversation | 初始化/读取独立创作对话、当前工作草稿和版本状态 |
+| POST /projects/{id}/conversation/turns | `{expectedVersion,expectedRevision,message}`，继续一轮讨论，持久化回复及完整工作草稿，不创建正式修订 |
+| POST /projects/{id}/conversation/save | `{expectedVersion,expectedRevision}`，保存当前对话草稿为正式新版本，返回 `{project,conversation}` |
+| POST /projects/{id}/conversation/rebase | `{expectedVersion,expectedRevision}`，以最新正式版本替换工作草稿，保留对话记录并追加说明 |
 
 保存请求：
 
@@ -45,3 +49,9 @@
 AI 连接超时返回 `504 AI_CONNECT_TIMEOUT`，等待响应超时返回 `504 AI_RESPONSE_TIMEOUT`；JSON 解析失败返回 `502 AI_INVALID_OUTPUT`，其他网络失败返回 `502 AI_CONNECTION_ERROR`。连接超时意味着尚未得到上游 HTTP 响应，不能据此判断密钥、模型权限或余额。后端诊断只记录错误分类和异常类名，不记录原始异常消息、密钥、上游正文或用户剧本。填入配置只表示字段存在，不代表已验证模型可调用。
 
 上传单独保存，引用进入故事文档后随版本保存；未引用的上传仍保留，没有自动垃圾清理。素材 URL 必须经过会话鉴权，不能直接提供给需要公网 URL 的第三方视频模型。
+
+对话结构：`{projectId,version,baseRevision,currentRevision,document,messages,processing,pendingPrompt,stale,hasChanges,updatedAt}`。消息为 `{id,role,content,createdAt}`。前端不提交可信历史或模型输出，Java 从自己的持久化记录读取上下文，每轮仅向模型发送最近 12 条消息及完整最新草稿。
+
+`version` 是独立的对话乐观锁，`baseRevision` 是工作草稿基于的正式剧本版本。发送与保存都必须匹配版本；正式剧本改变后返回 409，不覆盖它。生成使用 120 秒租约，模型调用在数据库事务外执行，完成时锁项目行再次检查正式版本。模型失败释放租约，保留先前消息/草稿及待重试要求；服务意外停止时，租约过期允许重新发送。没有承诺付费供应商请求 exactly-once，网络中断后重试仍可能产生额外调用。
+
+保存通过同一事务创建正式修订并更新对话 baseRevision；没有新改动时拒绝重复保存。`rebase` 会替换工作草稿但不清除历史，前端在未保存草稿存在时要求用户确认。

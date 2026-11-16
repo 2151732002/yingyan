@@ -280,7 +280,7 @@ export default function Projects() {
       {creating && (
         <CreateProject
           onClose={() => setCreating(false)}
-          onCreated={(p) => router.push(`/studio/${p.id}`)}
+          onCreated={(p) => router.push(`/studio/${p.id}?compose=1`)}
         />
       )}
     </>

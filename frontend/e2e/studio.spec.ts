@@ -23,6 +23,7 @@ test("create, edit, save, refresh and restore an immutable story revision", asyn
   await page.getByLabel("故事名称").fill("雨夜的咖啡馆");
   await page.getByRole("button", { name: "创建项目", exact: true }).click();
   await expect(page).toHaveURL(/\/studio\//);
+  await page.getByRole("button", { name: "关闭对话框", exact: true }).click();
   await page.getByRole("button", { name: "载入示例剧本", exact: true }).click();
   await expect(page.getByLabel("故事梗概")).toHaveValue(/雨/);
   await page.screenshot({
@@ -32,6 +33,7 @@ test("create, edit, save, refresh and restore an immutable story revision", asyn
   await page.getByRole("button", { name: "保存版本", exact: true }).click();
   await expect(page.getByText("全部更改已保存", { exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "关闭对话框", exact: true }).click();
   await expect(page.getByLabel("故事梗概")).toHaveValue(/雨/);
   await page.getByRole("button", { name: "角色", exact: true }).click();
   await expect(page.getByLabel("角色姓名").first()).toHaveValue("林夏");
@@ -82,6 +84,16 @@ test("create, edit, save, refresh and restore an immutable story revision", asyn
 test("concurrent saves keep the local draft and unconfigured AI stays honest", async ({
   page,
 }) => {
+  await page.route("**/api/system", (route) =>
+    route.fulfill({
+      json: {
+        stage: 1,
+        aiConfigured: false,
+        textModel: "not-configured",
+        videoGenerationAvailable: false,
+      },
+    }),
+  );
   await page.goto("/login");
   await page.getByLabel("账号").fill("director");
   await page.getByLabel("密码", { exact: true }).fill("yingyan-demo-2026");

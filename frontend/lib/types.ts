@@ -83,3 +83,26 @@ export interface SystemInfo {
   textModel: string;
   videoGenerationAvailable: boolean;
 }
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+}
+export interface Conversation {
+  projectId: string;
+  version: number;
+  baseRevision: number;
+  currentRevision: number;
+  document: StoryDocument;
+  messages: ChatMessage[];
+  processing: boolean;
+  pendingPrompt: string;
+  stale: boolean;
+  hasChanges: boolean;
+  updatedAt: string;
+}
+export interface ConversationSaved {
+  project: Project;
+  conversation: Conversation;
+}

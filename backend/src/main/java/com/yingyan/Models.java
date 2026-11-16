@@ -37,6 +37,15 @@ public final class Models {
     public record RevisionRequest(@Min(1) int expectedRevision){}
     public record RestoreRequest(@Min(1) int expectedRevision,@Min(1) int sourceRevision){}
     public record SuggestionRequest(@NotBlank @Size(max=5000) String prompt,@Min(1) int expectedRevision){}
+    public record ChatMessage(String id,String role,String content,LocalDateTime createdAt){}
+    public record ChatReply(String reply,Document document){}
+    public record ChatRequest(@Min(1) int expectedVersion,@Min(1) int expectedRevision,@NotBlank @Size(max=5000) String message){}
+    public record ChatVersion(@Min(1) int expectedVersion,@Min(1) int expectedRevision){}
+    public record ConversationRow(String projectId,String ownerId,int version,int baseRevision,String draftJson,String messagesJson,
+        String requestId,String pendingPrompt,LocalDateTime processingUntil,LocalDateTime updatedAt){}
+    public record Conversation(String projectId,int version,int baseRevision,int currentRevision,Document document,List<ChatMessage> messages,
+        boolean processing,String pendingPrompt,boolean stale,boolean hasChanges,LocalDateTime updatedAt){}
+    public record ConversationSaved(Project project,Conversation conversation){}
     public record ProjectRow(String id,String ownerId,String title,String logline,String genre,int targetDuration,
         int revision,boolean archived,String documentJson,LocalDateTime createdAt,LocalDateTime updatedAt){}
     public record Snapshot(String title,String logline,String genre,int targetDuration,Document document){}
