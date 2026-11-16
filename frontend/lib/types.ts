@@ -101,6 +101,14 @@ export interface Conversation {
   stale: boolean;
   hasChanges: boolean;
   updatedAt: string;
+  memory: WritingMemory;
+}
+export interface WritingMemory {
+  requirements: string[];
+  summary: string;
+  suggestions: string[];
+  revokedRequirements: string[];
+  updatedAt: string | null;
 }
 export interface ConversationSaved {
   project: Project;

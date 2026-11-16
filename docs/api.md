@@ -25,6 +25,7 @@
 | POST /projects/{id}/conversation/turns | `{expectedVersion,expectedRevision,message}`，继续一轮讨论，持久化回复及完整工作草稿，不创建正式修订 |
 | POST /projects/{id}/conversation/save | `{expectedVersion,expectedRevision}`，保存当前对话草稿为正式新版本，返回 `{project,conversation}` |
 | POST /projects/{id}/conversation/rebase | `{expectedVersion,expectedRevision}`，以最新正式版本替换工作草稿，保留对话记录并追加说明 |
+| PUT /projects/{id}/conversation/memory | `{expectedVersion,expectedRevision,requirements,summary,suggestions}`，显式保存长期创作要求与摘要，返回更新后的 conversation |
 
 保存请求：
 
@@ -53,6 +54,12 @@ AI 连接超时返回 `504 AI_CONNECT_TIMEOUT`，等待响应超时返回 `504 A
 上传单独保存，引用进入故事文档后随版本保存；未引用的上传仍保留，没有自动垃圾清理。素材 URL 必须经过会话鉴权，不能直接提供给需要公网 URL 的第三方视频模型。
 
 对话结构：`{projectId,version,baseRevision,currentRevision,document,messages,processing,pendingPrompt,stale,hasChanges,updatedAt}`。消息为 `{id,role,content,createdAt}`。前端不提交可信历史或模型输出，Java 从自己的持久化记录读取上下文，每轮仅向模型发送最近 12 条消息及完整最新草稿。
+
+对话响应额外包含 `memory: {requirements,summary,suggestions,revokedRequirements,updatedAt}`。初始为空列表和空摘要，updatedAt 为 null；存放在独立 `story_writing_memory` 表，启动时非破坏性创建。每轮实际上下文还包含全部长期要求、摘要与最近 40 条撤销要求，近期消息窗口仍为 12 条。
+
+记忆写入沿用 conversation.version 乐观锁，expectedRevision 使用 currentRevision。写入在项目行锁内检查归属、归档、版本与生成租约，成功后推进对话 version，不更改正式剧本 revision、当前工作草稿或历史消息。生成中返回 409；其他账号访问返回 404。
+
+用户要求最多 20 条、每条最多 300 字；摘要最多 4000 字；待确认建议最多 8 条。输入去除首尾空白并去重。删掉或改写的旧要求加入撤销列表，重新添加后移出。AI 的 `ChatReply.memory` 仅是 `{summary,suggestions}`，不能改写 requirements 或撤销列表；辅助记忆缺少必要字段或摘要超长时保留旧辅助记忆，有效剧本仍可完成保存。模型不能自行确认建议。正式剧本版本的保存、恢复及对话 rebase 不回退记忆，用户可在面板复核是否仍适用。
 
 `version` 是独立的对话乐观锁，`baseRevision` 是工作草稿基于的正式剧本版本。发送与保存都必须匹配版本；正式剧本改变后返回 409，不覆盖它。生成使用 120 秒租约，模型调用在数据库事务外执行，完成时锁项目行再次检查正式版本。模型失败释放租约，保留先前消息/草稿及待重试要求；服务意外停止时，租约过期允许重新发送。没有承诺付费供应商请求 exactly-once，网络中断后重试仍可能产生额外调用。
 

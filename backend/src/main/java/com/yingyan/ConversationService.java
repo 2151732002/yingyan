@@ -18,8 +18,9 @@ public class ConversationService {
     private final DocumentValidator validator;
     private final ObjectMapper json;
     private final TransactionTemplate transaction;
-    public ConversationService(ConversationMapper mapper,ProjectService projects,AiPlanner ai,DocumentValidator validator,ObjectMapper json,TransactionTemplate transaction){
-        this.mapper=mapper;this.projects=projects;this.ai=ai;this.validator=validator;this.json=json;this.transaction=transaction;
+    private final WritingMemoryService memory;
+    public ConversationService(ConversationMapper mapper,ProjectService projects,AiPlanner ai,DocumentValidator validator,ObjectMapper json,TransactionTemplate transaction,WritingMemoryService memory){
+        this.mapper=mapper;this.projects=projects;this.ai=ai;this.validator=validator;this.json=json;this.transaction=transaction;this.memory=memory;
     }
     public Conversation get(String owner,String id){var p=projects.get(owner,id);return view(ensure(owner,p),p);}
     private ConversationRow ensure(String owner,Project p){
@@ -38,7 +39,7 @@ public class ConversationService {
         String requestId=UUID.randomUUID().toString();
         if(mapper.acquire(id,owner,row.version(),requestId,request.message(),LocalDateTime.now().plusSeconds(120))!=1)throw changed();
         try{
-            var reply=ai.converse(request.message(),p,document(row),messages(row));
+            var reply=ai.converse(request.message(),p,document(row),messages(row),memory.get(owner,id));
             if(reply==null||reply.reply()==null||reply.reply().isBlank()||reply.reply().length()>6000)throw new ApiException(502,"AI_INVALID_OUTPUT","AI 没有返回有效的创作回复，请保留输入后重试。");
             validator.validate(reply.document(),id,owner);
             var history=new ArrayList<>(messages(row));
@@ -47,9 +48,19 @@ public class ConversationService {
                 lock(owner,id);var current=projects.get(owner,id);
                 if(current.archived()||current.revision()!=p.revision())throw ApiException.conflict();
                 if(mapper.finish(id,owner,row.version(),requestId,write(reply.document()),write(history))!=1)throw changed();
+                memory.propose(owner,id,reply.memory());
                 return view(mapper.get(id,owner),current);
             });
         }finally{mapper.release(id,owner,requestId);}
+    }
+    public Conversation editMemory(String owner,String id,MemoryUpdate request){
+        return transaction.execute(status->{
+            lock(owner,id);var p=projects.get(owner,id);var row=ensure(owner,p);
+            check(p,row,request.expectedVersion(),request.expectedRevision(),false);
+            memory.edit(owner,id,request);
+            if(mapper.touch(id,owner,row.version())!=1)throw changed();
+            return view(mapper.get(id,owner),p);
+        });
     }
     public ConversationSaved save(String owner,String id,ChatVersion request){
         return transaction.execute(status->{
@@ -80,7 +91,7 @@ public class ConversationService {
     private ApiException changed(){return new ApiException(409,"CHAT_CHANGED","对话已有新进展，请刷新对话后继续，当前输入仍可保留。");}
     private boolean processing(ConversationRow r){return r.processingUntil()!=null&&r.processingUntil().isAfter(LocalDateTime.now());}
     private ChatMessage message(String role,String content){return new ChatMessage(UUID.randomUUID().toString(),role,content,LocalDateTime.now());}
-    private Conversation view(ConversationRow r,Project p){var d=document(r);return new Conversation(r.projectId(),r.version(),r.baseRevision(),p.revision(),d,messages(r),processing(r),Objects.toString(r.pendingPrompt(),""),r.baseRevision()!=p.revision(),!d.equals(p.document()),r.updatedAt());}
+    private Conversation view(ConversationRow r,Project p){var d=document(r);return new Conversation(r.projectId(),r.version(),r.baseRevision(),p.revision(),d,messages(r),processing(r),Objects.toString(r.pendingPrompt(),""),r.baseRevision()!=p.revision(),!d.equals(p.document()),r.updatedAt(),memory.get(r.ownerId(),r.projectId()));}
     private Document document(ConversationRow r){try{return json.readValue(r.draftJson(),Document.class);}catch(JsonProcessingException e){throw new IllegalStateException("Cannot decode conversation draft",e);}}
     private List<ChatMessage> messages(ConversationRow r){try{return json.readValue(r.messagesJson(),new TypeReference<List<ChatMessage>>(){});}catch(JsonProcessingException e){throw new IllegalStateException("Cannot decode conversation history",e);}}
     private String write(Object value){try{return json.writeValueAsString(value);}catch(JsonProcessingException e){throw new IllegalStateException("Cannot encode conversation",e);}}

@@ -38,13 +38,21 @@ public final class Models {
     public record RestoreRequest(@Min(1) int expectedRevision,@Min(1) int sourceRevision){}
     public record SuggestionRequest(@NotBlank @Size(max=5000) String prompt,@Min(1) int expectedRevision){}
     public record ChatMessage(String id,String role,String content,LocalDateTime createdAt){}
-    public record ChatReply(String reply,Document document){}
+    public record MemoryProposal(String summary,List<String> suggestions){}
+    public record ChatReply(String reply,Document document,MemoryProposal memory){public ChatReply(String reply,Document document){this(reply,document,null);}}
+    public record WritingMemory(List<String> requirements,String summary,List<String> suggestions,List<String> revokedRequirements,LocalDateTime updatedAt){
+        public static WritingMemory empty(){return new WritingMemory(List.of(),"",List.of(),List.of(),null);}
+    }
+    public record MemoryRow(String projectId,String ownerId,String requirementsJson,String summary,String suggestionsJson,String revokedJson,LocalDateTime updatedAt){}
+    public record MemoryUpdate(@Min(1) int expectedVersion,@Min(1) int expectedRevision,
+        @NotNull @Size(max=20) List<@NotBlank @Size(max=300) String> requirements,
+        @NotNull @Size(max=4000) String summary,@NotNull @Size(max=8) List<@NotBlank @Size(max=300) String> suggestions){}
     public record ChatRequest(@Min(1) int expectedVersion,@Min(1) int expectedRevision,@NotBlank @Size(max=5000) String message){}
     public record ChatVersion(@Min(1) int expectedVersion,@Min(1) int expectedRevision){}
     public record ConversationRow(String projectId,String ownerId,int version,int baseRevision,String draftJson,String messagesJson,
         String requestId,String pendingPrompt,LocalDateTime processingUntil,LocalDateTime updatedAt){}
     public record Conversation(String projectId,int version,int baseRevision,int currentRevision,Document document,List<ChatMessage> messages,
-        boolean processing,String pendingPrompt,boolean stale,boolean hasChanges,LocalDateTime updatedAt){}
+        boolean processing,String pendingPrompt,boolean stale,boolean hasChanges,LocalDateTime updatedAt,WritingMemory memory){}
     public record ConversationSaved(Project project,Conversation conversation){}
     public record ProjectRow(String id,String ownerId,String title,String logline,String genre,int targetDuration,
         int revision,boolean archived,String documentJson,LocalDateTime createdAt,LocalDateTime updatedAt){}

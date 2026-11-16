@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
+  Brain,
   FileText,
   LoaderCircle,
   MessageCircle,
@@ -18,6 +19,7 @@ import type {
   SystemInfo,
 } from "@/lib/types";
 import { ErrorMessage, Loading, Modal } from "./ui";
+import { WritingMemoryEditor } from "./writing-memory";
 
 export function AiAssistant({
   project,
@@ -101,6 +103,7 @@ function ConversationEditor({
   const [input, setInput] = useState(conversation.pendingPrompt);
   const [notice, setNotice] = useState("");
   const [view, setView] = useState("chat");
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const log = useRef<HTMLDivElement>(null);
   function update(state: Conversation) {
     client.setQueryData(["conversation", project.id], state);
@@ -185,6 +188,16 @@ function ConversationEditor({
         </div>
         <div className="conversation-toolbar-actions">
           <button
+            className="btn secondary memory-open"
+            disabled={busy}
+            onClick={() => setMemoryOpen(true)}
+            aria-label="创作记忆"
+          >
+            <Brain size={16} />
+            创作记忆{" "}
+            <span>{conversation.memory?.requirements.length || 0}</span>
+          </button>
+          <button
             className="icon-btn"
             aria-label="刷新对话"
             title="刷新对话"
@@ -210,6 +223,17 @@ function ConversationEditor({
           </button>
         </div>
       </div>
+      {memoryOpen && (
+        <WritingMemoryEditor
+          conversation={conversation}
+          onClose={() => setMemoryOpen(false)}
+          onUpdated={(state) => {
+            update(state);
+            setNotice("创作记忆已保存，将从下一轮对话开始使用。");
+            setMemoryOpen(false);
+          }}
+        />
+      )}
       {notice && (
         <p className="conversation-notice" role="status">
           {notice}

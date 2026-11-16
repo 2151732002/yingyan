@@ -34,3 +34,10 @@ CREATE TABLE IF NOT EXISTS story_conversation (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
 );
+CREATE TABLE IF NOT EXISTS story_writing_memory (
+  project_id VARCHAR(36) PRIMARY KEY, owner_id VARCHAR(36) NOT NULL,
+  requirements_json LONGTEXT NOT NULL, summary LONGTEXT NOT NULL,
+  suggestions_json LONGTEXT NOT NULL, revoked_json LONGTEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
+);

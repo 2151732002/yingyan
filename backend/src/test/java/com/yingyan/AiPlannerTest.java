@@ -16,6 +16,23 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class AiPlannerTest {
     final ObjectMapper json=new ObjectMapper();
     Models.Project project(){return new Models.Project("p1","雨夜咖啡馆","告别","剧情",45,1,false,Models.Document.empty(),null,null);}
+    @Test void confirmedRequirementsAndSummaryRemainWhenOriginalMessagesLeaveTheWindow()throws Exception {
+        var received=new AtomicReference<JsonNode>();var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/responses",exchange->{
+            received.set(json.readTree(exchange.getRequestBody()));
+            String envelope=json.writeValueAsString(new Models.ChatReply("继续",Models.Document.empty(),new Models.MemoryProposal("摘要更新",java.util.List.of())));
+            byte[] response=("{\"status\":\"completed\",\"output\":[{\"content\":[{\"type\":\"output_text\",\"text\":"+json.writeValueAsString(envelope)+"}]}]}").getBytes(StandardCharsets.UTF_8);exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);exchange.close();
+        });server.start();
+        try{
+            var history=new java.util.ArrayList<Models.ChatMessage>();for(int i=0;i<20;i++)history.add(new Models.ChatMessage("m"+i,i%2==0?"user":"assistant","old-message-"+i,null));
+            var memory=new Models.WritingMemory(java.util.List.of("始终保留主角林晚"),"早期已经确认林晚是店主",java.util.List.of(),java.util.List.of("必须悲剧结局"),null);
+            var reply=new AiPlanner(json,"dummy-key","model","http://127.0.0.1:"+server.getAddress().getPort()).converse("继续",project(),Models.Document.empty(),history,memory);
+            var request=received.get();assertThat(request.path("input").size()).isEqualTo(14);
+            String context=request.path("input").get(0).path("content").asText();assertThat(context).contains("始终保留主角林晚","早期已经确认林晚是店主","必须悲剧结局");
+            assertThat(request.path("input").toString()).doesNotContain("old-message-0");
+            assertThat(reply.memory().summary()).isEqualTo("摘要更新");
+        }finally{server.stop(0);}
+    }
     @Test void plainChineseConversationReplyPreservesTheExistingDraft()throws Exception {
         var draft=new Models.Document("已有故事","已有对白",java.util.List.of(),java.util.List.of(),java.util.List.of());
         var reply=chatWithParts(java.util.List.of("可以，我们先讨论人物的动机。你希望他们为什么重逢？"),draft);

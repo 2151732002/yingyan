@@ -39,6 +39,13 @@ test("named story supports iterative chat, refresh, failure recovery and explici
           stale: false,
           hasChanges: false,
           updatedAt: new Date().toISOString(),
+          memory: {
+            requirements: [],
+            summary: "",
+            suggestions: [],
+            revokedRequirements: [],
+            updatedAt: null,
+          },
         };
         states.set(id, state);
       }

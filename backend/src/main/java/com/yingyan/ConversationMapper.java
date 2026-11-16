@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 @Mapper
 public interface ConversationMapper {
+    @Update("UPDATE story_conversation SET version=version+1,updated_at=CURRENT_TIMESTAMP WHERE project_id=#{id} AND owner_id=#{owner} AND version=#{version} AND (processing_until IS NULL OR processing_until<CURRENT_TIMESTAMP)")
+    int touch(@Param("id")String id,@Param("owner")String owner,@Param("version")int version);
     @Select("SELECT * FROM story_conversation WHERE project_id=#{id} AND owner_id=#{owner}")
     ConversationRow get(@Param("id")String id,@Param("owner")String owner);
     @Select("SELECT * FROM story_project WHERE id=#{id} AND owner_id=#{owner} FOR UPDATE")
