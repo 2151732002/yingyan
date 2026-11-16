@@ -4,13 +4,41 @@ import com.fasterxml.jackson.databind.*;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import java.net.*;
+import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class AiPlannerTest {
     final ObjectMapper json=new ObjectMapper();
     Models.Project project(){return new Models.Project("p1","雨夜咖啡馆","告别","剧情",45,1,false,Models.Document.empty(),null,null);}
+    @Test void connectionTimeoutHasItsOwnSafeActionableError()throws Exception {
+        var client=mock(HttpClient.class);
+        when(client.send(any(HttpRequest.class),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenThrow(new HttpConnectTimeoutException("dummy-key-secret"));
+        var planner=new AiPlanner(json,"dummy-key","model","https://api.openai.com/v1",client);
+        assertThatThrownBy(()->planner.suggest("test",project())).isInstanceOfSatisfying(ApiException.class,e->{
+            assertThat(e.status()).isEqualTo(504);assertThat(e.code()).isEqualTo("AI_CONNECT_TIMEOUT");
+            assertThat(e.getMessage()).contains("连接超时").doesNotContain("dummy-key","解析");
+        });
+    }
+    @Test void responseTimeoutIsDifferentFromConnectionTimeout()throws Exception {
+        var client=mock(HttpClient.class);
+        when(client.send(any(HttpRequest.class),org.mockito.ArgumentMatchers.<HttpResponse.BodyHandler<String>>any())).thenThrow(new HttpTimeoutException("dummy-key-secret"));
+        var planner=new AiPlanner(json,"dummy-key","model","https://api.openai.com/v1",client);
+        assertThatThrownBy(()->planner.suggest("test",project())).isInstanceOfSatisfying(ApiException.class,e->{
+            assertThat(e.status()).isEqualTo(504);assertThat(e.code()).isEqualTo("AI_RESPONSE_TIMEOUT");
+            assertThat(e.getMessage()).doesNotContain("dummy-key");
+        });
+    }
+    @Test void malformedOutputIsNotReportedAsANetworkFailure()throws Exception {
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/responses",exchange->{byte[] b="not-json-secret".getBytes(StandardCharsets.UTF_8);exchange.sendResponseHeaders(200,b.length);exchange.getResponseBody().write(b);exchange.close();});server.start();
+        try{
+            var planner=new AiPlanner(json,"dummy-key","model","http://127.0.0.1:"+server.getAddress().getPort());
+            assertThatThrownBy(()->planner.suggest("test",project())).isInstanceOfSatisfying(ApiException.class,e->{assertThat(e.code()).isEqualTo("AI_INVALID_OUTPUT");assertThat(e.getMessage()).doesNotContain("not-json-secret","dummy-key");});
+        }finally{server.stop(0);}
+    }
     @Test void sendsResponsesSchemaAndReturnsDraftWithoutChangingProject()throws Exception {
         var received=new AtomicReference<JsonNode>();
         var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);

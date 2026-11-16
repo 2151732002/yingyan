@@ -2,19 +2,25 @@ package com.yingyan;
 
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.yingyan.Models.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.net.URI;
 import java.net.http.*;
 import java.time.Duration;
+import java.io.IOException;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AiPlanner {
     private final ObjectMapper json;
     private final String key,model,base;
-    private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
-    public AiPlanner(ObjectMapper json,@Value("${yingyan.ai.api-key:}")String key,@Value("${yingyan.ai.model:gpt-4.1-mini}")String model,@Value("${yingyan.ai.base-url:https://api.openai.com/v1}")String base){this.json=json;this.key=key;this.model=model;this.base=base.replaceAll("/+$","");}
+    private final HttpClient http;
+    @Autowired
+    public AiPlanner(ObjectMapper json,@Value("${yingyan.ai.api-key:}")String key,@Value("${yingyan.ai.model:gpt-4.1-mini}")String model,@Value("${yingyan.ai.base-url:https://api.openai.com/v1}")String base){this(json,key,model,base,HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build());}
+    AiPlanner(ObjectMapper json,String key,String model,String base,HttpClient http){this.json=json;this.key=key;this.model=model;this.base=base.replaceAll("/+$","");this.http=http;}
     public boolean configured(){return !key.isBlank()&&!model.isBlank();}
     public String model(){return model;}
     public Document suggest(String prompt,Models.Project project){
@@ -37,6 +43,15 @@ public class AiPlanner {
             }
             throw new ApiException(502,"AI_INVALID_OUTPUT","AI 没有返回可编辑的结构化剧本");
         }catch(ApiException e){throw e;}catch(InterruptedException e){Thread.currentThread().interrupt();throw new ApiException(503,"AI_INTERRUPTED","文本生成已中断，可保留草稿后重试");}
-        catch(Exception e){throw new ApiException(502,"AI_CONNECTION_ERROR","文本 AI 连接失败或返回内容无法解析，请保留草稿后重试");}
+        catch(HttpConnectTimeoutException e){throw failure(e,504,"AI_CONNECT_TIMEOUT","文本 AI 连接超时，尚未收到服务响应。请检查后端网络出口、防火墙和服务地址，保留草稿后重试。");}
+        catch(HttpTimeoutException e){throw failure(e,504,"AI_RESPONSE_TIMEOUT","等待文本 AI 响应超时，生成结果尚未确认。请保留草稿，稍后再试。");}
+        catch(JsonProcessingException e){throw failure(e,502,"AI_INVALID_OUTPUT","文本 AI 返回内容无法解析为剧本，请保留草稿并重试。");}
+        catch(IOException e){throw failure(e,502,"AI_CONNECTION_ERROR","文本 AI 网络连接失败，请检查后端网络、服务地址和 TLS 证书后重试。");}
+        catch(Exception e){throw failure(e,502,"AI_REQUEST_ERROR","文本 AI 请求未完成，请检查后端模型配置，保留草稿后重试。");}
+    }
+    private ApiException failure(Exception e,int status,String code,String message){
+        // Never log exception messages, response bodies, prompts or credentials.
+        LoggerFactory.getLogger(getClass()).warn("Text AI failure: category={}, exception={}",code,e.getClass().getSimpleName());
+        return new ApiException(status,code,message);
     }
 }
