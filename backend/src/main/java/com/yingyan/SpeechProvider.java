@@ -2,6 +2,7 @@ package com.yingyan;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.io.*;
 import java.net.URI;
@@ -16,9 +17,16 @@ import java.util.concurrent.*;
 public class SpeechProvider {
     public record Audio(byte[] bytes,double durationSeconds){}
     private final String key,base;private final ObjectMapper json;
+    private final Duration completionTimeout;
     private final HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    @Autowired
     public SpeechProvider(@Value("${yingyan.speech.api-key:}")String speechKey,@Value("${yingyan.speech.base-url:https://api.deepseek.com}")String speechBase,
         @Value("${yingyan.ai.api-key:}")String textKey,@Value("${yingyan.ai.base-url:}")String textBase,ObjectMapper json){
+        this(speechKey,speechBase,textKey,textBase,json,Duration.ofSeconds(95));
+    }
+    SpeechProvider(String speechKey,String speechBase,String textKey,String textBase,ObjectMapper json,Duration completionTimeout){
+        if(completionTimeout.isNegative()||completionTimeout.toMillis()<1)throw new IllegalArgumentException("Positive completion timeout required");
+        this.completionTimeout=completionTimeout;
         this.json=json;boolean deepseek=false;try{var uri=URI.create(textBase);deepseek="https".equals(uri.getScheme())&&"api.deepseek.com".equals(uri.getHost());}catch(Exception ignored){}
         key=!speechKey.isBlank()?speechKey:(deepseek?textKey:"");base=speechBase.replaceAll("/+$","").replaceAll("/v1$","");
     }
@@ -34,7 +42,7 @@ public class SpeechProvider {
             var listener=new SpeechListener(json,text);
             handshake=client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(15)).header("Authorization","Bearer "+key)
                 .buildAsync(URI.create(ws+"/v1/tools/tts?voice_id="+voice+"&format=pcm&filter_markdown=false"),listener);
-            socket=handshake.get(16,TimeUnit.SECONDS);return listener.result.get(95,TimeUnit.SECONDS);
+            socket=handshake.get(16,TimeUnit.SECONDS);return listener.result.get(completionTimeout.toMillis(),TimeUnit.MILLISECONDS);
         }catch(TimeoutException e){throw new ApiException(504,"SPEECH_TIMEOUT","语音生成超时，请稍后手动重试");}
         catch(InterruptedException e){Thread.currentThread().interrupt();throw new ApiException(503,"SPEECH_INTERRUPTED","语音生成中断，请稍后手动重试");}
         catch(Exception e){

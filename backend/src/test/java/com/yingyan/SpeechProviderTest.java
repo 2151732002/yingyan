@@ -10,10 +10,14 @@ import java.util.*;
 import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
 
+@Timeout(10)
 class SpeechProviderTest {
     ServerSocket server;ExecutorService executor;Future<?> handled;
     @AfterEach void stop()throws Exception{if(server!=null)server.close();if(executor!=null)executor.close();}
     SpeechProvider provider(String finish,boolean closeEarly)throws Exception{
+        return provider(finish,closeEarly?"close":"finish");
+    }
+    SpeechProvider provider(String finish,String ending)throws Exception{
         server=new ServerSocket(0,1,InetAddress.getByName("127.0.0.1"));executor=Executors.newSingleThreadExecutor();
         handled=executor.submit(()->{try(var socket=server.accept()){
             socket.setSoTimeout(5000);var in=new DataInputStream(socket.getInputStream());var out=new DataOutputStream(socket.getOutputStream());var header=new ByteArrayOutputStream();int c;
@@ -23,15 +27,32 @@ class SpeechProviderTest {
             String accept=Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest((key+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes(StandardCharsets.US_ASCII)));
             out.writeBytes("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+accept+"\r\n\r\n");out.flush();
             var json=new ObjectMapper();assertThat(json.readTree(readFrame(in)).path("text").asText()).isEqualTo("你好。");assertThat(json.readTree(readFrame(in)).path("event").asText()).isEqualTo("finish_text");
-            frame(out,2,new byte[4800]);if(!closeEarly)frame(out,1,("{\"event\":\"finish\",\"code\":\""+finish+"\"}").getBytes(StandardCharsets.UTF_8));
+            frame(out,2,new byte[4800]);
+            switch(ending){
+                case "finish" -> frame(out,1,("{\"event\":\"finish\",\"code\":\""+finish+"\"}").getBytes(StandardCharsets.UTF_8));
+                case "close" -> frame(out,8,new byte[]{3,(byte)232}); // RFC 6455 normal close, without TTS success.
+                case "stall" -> {try{in.read();}catch(IOException expectedDisconnect){}}
+                case "abrupt" -> {} // TCP EOF without a WebSocket close frame; JDK callback timing can vary.
+                default -> throw new IllegalArgumentException(ending);
+            }
         }catch(Exception e){throw new RuntimeException(e);}});
-        return new SpeechProvider("fictional-key","http://127.0.0.1:"+server.getLocalPort(),"","",new ObjectMapper());
+        return new SpeechProvider("fictional-key","http://127.0.0.1:"+server.getLocalPort(),"","",new ObjectMapper(),java.time.Duration.ofMillis(750));
     }
     static byte[] readFrame(DataInputStream in)throws Exception{in.readUnsignedByte();int flags=in.readUnsignedByte();long size=flags&127;if(size==126)size=in.readUnsignedShort();else if(size==127)size=in.readLong();byte[] mask=(flags&128)!=0?in.readNBytes(4):null;byte[] data=in.readNBytes((int)size);if(mask!=null)for(int i=0;i<data.length;i++)data[i]^=mask[i%4];return data;}
     static void frame(DataOutputStream out,int opcode,byte[] data)throws Exception{out.writeByte(128|opcode);if(data.length<126)out.writeByte(data.length);else{out.writeByte(126);out.writeShort(data.length);}out.write(data);out.flush();}
     @Test void requiresExplicitCompletionAndWrapsPcmAsWav()throws Exception{var a=provider("success",false).synthesize("你好。","tide");handled.get();assertThat(a.durationSeconds()).isEqualTo(0.1);assertThat(a.bytes()).hasSize(4844);assertThat(new String(a.bytes(),0,4,StandardCharsets.US_ASCII)).isEqualTo("RIFF");}
     @Test void rejectsEarlyCloseEvenWhenSomeAudioArrived()throws Exception{assertThatThrownBy(()->provider("success",true).synthesize("你好。","tide")).isInstanceOf(ApiException.class).hasMessageContaining("不完整");handled.get();}
     @Test void failedCompletionDoesNotPublishPartialAudio()throws Exception{assertThatThrownBy(()->provider("service_error",false).synthesize("你好。","tide")).isInstanceOf(ApiException.class).hasMessageContaining("失败");handled.get();}
+    @Test void abruptTcpEofNeverPublishesPartialAudio()throws Exception{
+        var error=catchThrowableOfType(ApiException.class,()->provider("success","abrupt").synthesize("你好。","tide"));
+        assertThat(error).isNotNull();
+        assertThat(error.code()).isIn("SPEECH_INVALID_AUDIO","SPEECH_TIMEOUT","SPEECH_CONNECTION_ERROR");handled.get();
+    }
+    @Test void stalledConnectionHasABoundedTimeoutAndNeverPublishesPartialAudio()throws Exception{
+        var error=catchThrowableOfType(ApiException.class,()->provider("success","stall").synthesize("你好。","tide"));
+        assertThat(error).isNotNull();
+        assertThat(error.code()).isEqualTo("SPEECH_TIMEOUT");handled.get();
+    }
     @Test void rejectsTruncatedWav(){assertThatThrownBy(()->SpeechProvider.decode(Arrays.copyOf(SpeechTest.wav(),100))).isInstanceOf(ApiException.class).hasMessageContaining("不完整");}
     @Test void onlyAutoReusesDeepSeekConfiguration(){
         assertThat(new SpeechProvider("","https://api.deepseek.com","key","https://api.openai.com/v1",new ObjectMapper()).configured()).isFalse();
