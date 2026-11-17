@@ -26,6 +26,8 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-4.1-mini}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      SPEECH_API_KEY: ${SPEECH_API_KEY:-}
+      SPEECH_BASE_URL: ${SPEECH_BASE_URL:-https://api.deepseek.com}
       STORAGE_DIR: /app/data/assets
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3100,http://127.0.0.1:3100}

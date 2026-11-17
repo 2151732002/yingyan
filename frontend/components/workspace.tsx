@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   History,
+  Headphones,
   Layers3,
   LoaderCircle,
   Save,
@@ -24,6 +25,7 @@ import { ErrorMessage, Loading, Modal } from "./ui";
 import { StoryPanel } from "./story-panel";
 import { CharactersPanel } from "./characters-panel";
 import { ShotsPanel } from "./shots-panel";
+import { SpeechPanel } from "./speech-panel";
 import { Revisions } from "./revisions";
 import { AiAssistant } from "./ai-assistant";
 import { api, ApiError, send } from "@/lib/api";
@@ -309,6 +311,7 @@ function ProjectEditor({
           { id: "story", name: "剧本", en: "STORY", icon: FileText },
           { id: "characters", name: "角色", en: "CHARACTERS", icon: Users },
           { id: "shots", name: "分镜", en: "STORYBOARD", icon: Clapperboard },
+          { id: "speech", name: "配音", en: "VOICE", icon: Headphones },
           { id: "check", name: "创作检查", en: "REVIEW", icon: CheckCircle2 },
         ].map(({ id, name, en, icon: Icon }, i) => (
           <button
@@ -401,6 +404,21 @@ function ProjectEditor({
                 onError={setError}
               />
             )}
+            {tab === "speech" && (
+              <SpeechPanel
+                project={saved}
+                dirty={dirty}
+                onReload={() => {
+                  if (
+                    !dirty ||
+                    window.confirm(
+                      "载入最新版本会替换尚未保存的更改，是否继续？",
+                    )
+                  )
+                    void reload();
+                }}
+              />
+            )}
             {tab === "check" && (
               <section className="review-panel">
                 <div className="editor-page-heading">
@@ -437,7 +455,7 @@ function ProjectEditor({
                     <Layers3 size={29} />
                     <h2>下一幕，让故事成为影像。</h2>
                     <p>
-                      第一阶段已提供结构化创作与版本保存。真实配音、人物口型和视频合成将在后续阶段接入。
+                      在配音页为角色选择音色，生成并试听每句对白。人物口型与视频合成将在后续阶段接入。
                     </p>
                     <div>
                       <span>

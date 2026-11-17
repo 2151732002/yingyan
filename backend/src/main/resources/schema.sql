@@ -34,6 +34,22 @@ CREATE TABLE IF NOT EXISTS story_conversation (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id)
 );
+CREATE TABLE IF NOT EXISTS story_voice_binding (
+  project_id VARCHAR(36) NOT NULL, character_id VARCHAR(64) NOT NULL,
+  voice_id VARCHAR(40) NOT NULL, version INT NOT NULL,
+  PRIMARY KEY(project_id,character_id), FOREIGN KEY (project_id) REFERENCES story_project(id)
+);
+CREATE TABLE IF NOT EXISTS story_speech_job (
+  id VARCHAR(36) PRIMARY KEY, project_id VARCHAR(36) NOT NULL, owner_id VARCHAR(36) NOT NULL,
+  shot_id VARCHAR(80) NOT NULL, dialogue_id VARCHAR(64) NOT NULL, character_id VARCHAR(64) NOT NULL,
+  character_name VARCHAR(60) NOT NULL, text VARCHAR(1000) NOT NULL, emotion VARCHAR(200) NOT NULL,
+  speed DOUBLE NOT NULL, voice_id VARCHAR(40) NOT NULL, project_revision INT NOT NULL,
+  fingerprint VARCHAR(64) NOT NULL, status VARCHAR(20) NOT NULL, error_message VARCHAR(300) NOT NULL,
+  storage_key VARCHAR(64) NOT NULL, duration_seconds DOUBLE NOT NULL, claim_token VARCHAR(36), lease_until TIMESTAMP NULL,
+  created_at TIMESTAMP(6) NOT NULL, updated_at TIMESTAMP(6) NOT NULL,
+  FOREIGN KEY (project_id) REFERENCES story_project(id), FOREIGN KEY (owner_id) REFERENCES app_user(id),
+  INDEX ix_speech_queue(status,created_at), INDEX ix_speech_project(project_id,created_at)
+);
 CREATE TABLE IF NOT EXISTS story_writing_memory (
   project_id VARCHAR(36) PRIMARY KEY, owner_id VARCHAR(36) NOT NULL,
   requirements_json LONGTEXT NOT NULL, summary LONGTEXT NOT NULL,

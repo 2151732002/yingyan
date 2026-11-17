@@ -35,3 +35,7 @@ yingyan:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_TEXT_MODEL:gpt-4.1-mini}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  speech:
+    api-key: ${SPEECH_API_KEY:}
+    base-url: ${SPEECH_BASE_URL:https://api.deepseek.com}
+    worker-enabled: ${SPEECH_WORKER_ENABLED:true}

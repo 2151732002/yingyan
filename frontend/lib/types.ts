@@ -83,6 +83,36 @@ export interface SystemInfo {
   textModel: string;
   videoGenerationAvailable: boolean;
 }
+export interface VoiceBinding {
+  characterId: string;
+  voiceId: string;
+  version: number;
+}
+export interface SpeechJob {
+  id: string;
+  shotId: string;
+  dialogueId: string;
+  characterId: string;
+  characterName: string;
+  text: string;
+  emotion: string;
+  speed: number;
+  voiceId: string;
+  projectRevision: number;
+  status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  errorMessage: string;
+  durationSeconds: number;
+  stale: boolean;
+  url: string;
+  createdAt: string;
+}
+export interface SpeechState {
+  configured: boolean;
+  provider: string;
+  voices: { id: string; name: string; description: string }[];
+  bindings: VoiceBinding[];
+  jobs: SpeechJob[];
+}
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";

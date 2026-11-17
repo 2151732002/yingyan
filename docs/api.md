@@ -1,5 +1,7 @@
 # 第一阶段 API
 
+角色配音新增接口、任务状态与配置见 [角色配音](character-speech.md#api)。
+
 接口由 Java 提供，前端通过 Next.js 同源代理调用 `/api`。除登录与 system 外均需 `yingyan_session` HttpOnly、SameSite=Lax 会话 Cookie。实际 HTTPS 部署应设置 `COOKIE_SECURE=true` 并配置允许的 Origin。会话有效期七天，退出立即失效；数据库只保存令牌哈希。
 
 | 方法与路径（省略 /api） | 功能 |
