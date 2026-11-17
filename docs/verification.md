@@ -39,4 +39,6 @@
 
 Next.js 更新为 16.4.6，修复构建检测到的 [GHSA-mfr8-8qww-v76h](https://github.com/vercel/next.js/security/advisories/GHSA-mfr8-8qww-v76h)。`npm ci --include=optional` 全新安装后，lint/typecheck/unit/build 均通过。
 
+配音实现提交 `5b3c80d` 的 [GitHub Actions](https://github.com/2151732002/yingyan/actions/runs/44034950036) 后端/前端任务均成功。独立桌面项目更新并完整安装依赖后启动于 3100/18080，健康状态 UP；只读浏览器检查确认配音与创作记忆页面正常、语音已配置、0 次模型/语音调用。升级前后 2 个现有项目及各自修订、对话、记忆的哈希一致，私有 `.env` 哈希不变。
+
 尚未验证/实现：Docker 容器实际运行、生产部署、公开用户安全运营、口型、视频生成、视频合成和平台收费。GitHub Actions 配置已提供，远程运行状态以仓库 Actions 为准，不能用本机通过替代远程结果。

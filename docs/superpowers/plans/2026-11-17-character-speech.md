@@ -13,5 +13,5 @@
 - [x] Add 配音 tab: explicitly saved voice bindings, previews, per-line generation/history, task polling, staleness, browser sequence audition with pauses and mobile layout. Disable generation for unsaved drafts and show conflict/reload actions.
 - [x] Run H2 and isolated MySQL tests; frontend lint/typecheck/build and browser flows including real Java speech queue using a local provider protocol fixture. Never label fixture audio as real synthesis.
 - [x] If configured, synthesize only fictional QA text for a live provider check; keep keys and user stories private.
-- [ ] Document setup/API/limits/evidence, commit/push to the authorized repository, pull/restart the independent desktop checkout and verify existing data remains intact.
+- [x] Document setup/API/limits/evidence, commit/push to the authorized repository, pull/restart the independent desktop checkout and verify existing data remains intact.
 
