@@ -112,6 +112,7 @@ function ProjectEditor({
               story: "剧本与场景",
               characters: "角色设定",
               shots: "分镜与对白",
+              speech: "对白语速",
               check: "创作内容",
             }[tab] || "草稿"),
         },
@@ -127,6 +128,7 @@ function ProjectEditor({
       setNotice("已保存新版本 V" + p.revision);
       setConflict(false);
       void client.invalidateQueries({ queryKey: ["projects"] });
+      void client.invalidateQueries({ queryKey: ["speech", p.id] });
     },
     onError: (e) => {
       setError(e.message);
@@ -408,6 +410,20 @@ function ProjectEditor({
               <SpeechPanel
                 project={saved}
                 dirty={dirty}
+                saving={save.isPending}
+                onNormalizeSpeed={() => {
+                  if (dirty || save.isPending) return;
+                  const submitted = structuredClone(draft);
+                  submitted.document.shots = submitted.document.shots.map(
+                    (shot) =>
+                      shot.dialogue?.text.trim() && shot.dialogue.speed !== 1
+                        ? { ...shot, dialogue: { ...shot.dialogue, speed: 1 } }
+                        : shot,
+                  );
+                  setDraft(submitted);
+                  setError("");
+                  save.mutate(submitted);
+                }}
                 onReload={() => {
                   if (
                     !dirty ||

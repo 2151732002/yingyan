@@ -474,6 +474,13 @@ export function ShotsPanel({
                       })
                     }
                   >
+                    {![0.8, 0.9, 1, 1.1, 1.2].includes(
+                      active.dialogue.speed,
+                    ) && (
+                      <option value={active.dialogue.speed}>
+                        自定义 · {active.dialogue.speed}
+                      </option>
+                    )}
                     <option value={0.8}>缓慢 · 0.8</option>
                     <option value={0.9}>稍慢 · 0.9</option>
                     <option value={1}>自然 · 1.0</option>

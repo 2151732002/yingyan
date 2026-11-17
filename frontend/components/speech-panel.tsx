@@ -30,10 +30,14 @@ const status = {
 export function SpeechPanel({
   project,
   dirty,
+  saving,
+  onNormalizeSpeed,
   onReload,
 }: {
   project: Project;
   dirty: boolean;
+  saving: boolean;
+  onNormalizeSpeed: () => void;
   onReload: () => void;
 }) {
   const client = useQueryClient();
@@ -118,6 +122,26 @@ export function SpeechPanel({
       {dirty && (
         <div className="speech-notice" role="status">
           有尚未保存的更改。请先保存项目版本，再选择音色或生成配音；下方展示已保存版本的配音状态。
+        </div>
+      )}
+      {lines.some((shot) => shot.dialogue!.speed !== 1) && (
+        <div className="speech-notice">
+          <p>
+            有 {lines.filter((shot) => shot.dialogue!.speed !== 1).length}{" "}
+            句台词的语速不是
+            1.0，当前服务仅支持原速。可在这里统一修改并保存为新版本，无需逐个查找镜头。
+          </p>
+          <button
+            className="btn secondary"
+            disabled={dirty || saving}
+            onClick={onNormalizeSpeed}
+          >
+            {saving ? "正在保存原速…" : "统一为原速并保存"}
+          </button>
+          <p className="field-note">
+            只调整有台词镜头的语速，保留原版本，不会生成配音。
+            {dirty ? "请先保存页面中其他未保存的更改。" : ""}
+          </p>
         </div>
       )}
       {!state.configured && (
@@ -256,7 +280,7 @@ export function SpeechPanel({
               </div>
               {line.speed !== 1 && (
                 <p className="field-note">
-                  当前服务不支持此语速，请在分镜中改为自然 1.0 并保存。
+                  当前服务不支持此语速，请使用上方「统一为原速并保存」，或在分镜中修改这句台词的语速。
                 </p>
               )}
               {latest && <JobAudio job={latest} />}
